@@ -32,12 +32,15 @@ package {
 public class Specs {
 
 	public static const GET_VAR:String = "readVariable";
+	public static const READ_VAR:String = "getLocal:";
+	public static const WRITE_VAR:String = "setLocal:to:";
 	public static const SET_VAR:String = "setVar:to:";
 	public static const CHANGE_VAR:String = "changeVar:by:";
 	public static const GET_LIST:String = "contentsOfList:";
 	public static const CALL:String = "call";
 	public static const PROCEDURE_DEF:String = "procDef";
 	public static const GET_PARAM:String = "getParam";
+	public static const DECLARE_VAR:String = "declareVar:to:";
 
 	public static const motionCategory:int = 1;
 	public static const looksCategory:int = 2;
@@ -225,15 +228,25 @@ public class Specs {
 		["--"],
 		["when %m.triggerSensor > %n",			"h", 5, "whenSensorGreaterThan", "loudness", 10],
 		["--"],
+		["when gamepad button %n pressed",		"h", 5, "whenGamepadButton",	12],
+		["when gamepad axe %n moved",			"h", 5, "whenGamepadAxe",		0],
+		["--"],
 		["when I receive %m.broadcast",			"h", 5, "whenIReceive",			""],
 		["broadcast %m.broadcast",				" ", 5, "broadcast:",			""],
 		["broadcast %m.broadcast and wait",		" ", 5, "doBroadcastAndWait",	""],
+		["-"],
+		["when I receive %s from js",			"h", 5, "whenJS",				""],
+		["call js %s with %s",					" ", 5, "callJS:with:",			"alert", "Hello World from Logicode!"],
+		["exec js %s",							" ", 5, "evalJS:",				"alert('Hello World from Logicode!');"],
 
 		// control - sprite
 		["wait %n secs",						" ", 6, "wait:elapsed:from:",	1],
 		["-"],
 		["repeat %n",							"c", 6, "doRepeat", 10],
 		["forever",								"cf",6, "doForever"],
+		["for each %m.varName in %s",			"c", 6, "doForLoop", "v", 10],
+		["for %m.varName while %b then",		"e", 6, "doFor"],
+		["while %b",							"c", 6, "doWhile"],
 		["-"],
 		["if %b then",							"c", 6, "doIf"],
 		["if %b then",							"e", 6, "doIfElse"],
@@ -246,12 +259,16 @@ public class Specs {
 		["create clone of %m.spriteOnly",		" ", 6, "createCloneOf"],
 		["delete this clone",					"f", 6, "deleteClone"],
 		["-"],
+		["scope",								"c", 6, "doScope"],
+		["-"],
 
 		// control - stage
 		["wait %n secs",						" ", 106, "wait:elapsed:from:",	1],
 		["-"],
 		["repeat %n",							"c", 106, "doRepeat", 10],
 		["forever",								"cf",106, "doForever"],
+		["for each %m.varName in %s",			"c", 106, "doForLoop", "v", 10],
+		["while %b",							"c", 106, "doWhile"],
 		["-"],
 		["if %b then",							"c", 106, "doIf"],
 		["if %b then",							"e", 106, "doIfElse"],
@@ -261,6 +278,8 @@ public class Specs {
 		["stop %m.stop",						"f", 106, "stopScripts", "all"],
 		["-"],
 		["create clone of %m.spriteOnly",		" ", 106, "createCloneOf"],
+		["-"],
+		["scope",								"c", 106, "doScope"],
 
 		// sensing
 		["touching %m.touching?",				"b", 7, "touching:",			""],
@@ -269,12 +288,18 @@ public class Specs {
 		["distance to %m.spriteOrMouse",		"r", 7, "distanceTo:",			""],
 		["-"],
 		["ask %s and wait",						" ", 7, "doAsk", 				"What's your name?"],
+		["ask %s",						        "Rr",7, "ask:", 				"What's your name?"],
 		["answer",								"r", 7, "answer"],
 		["-"],
 		["key %m.key pressed?",					"b", 7, "keyPressed:",			"space"],
 		["mouse down?",							"b", 7, "mousePressed"],
 		["mouse x",								"r", 7, "mouseX"],
 		["mouse y",								"r", 7, "mouseY"],
+		["-"],
+		["gamepad button %n pressed?",			"b", 7, "gamepadButton:", 		  	12],
+		["gamepad axe %n",						"r", 7, "gamepadAxe:", 			  	0],
+		["gamepad stick %n direction",			"r", 7, "gamepadStickDirection:", 	1],
+		["gamepad stick %n value",				"r", 7, "gamepadStickValue:", 		1],
 		["-"],
 		["loudness",							"r", 7, "soundLevel"],
 		["-"],
@@ -293,6 +318,7 @@ public class Specs {
 
 		// stage sensing
 		["ask %s and wait",						" ", 107, "doAsk", 				"What's your name?"],
+		["ask %s",						        "R", 107, "ask:", 			    "What's your name?"],
 		["answer",								"r", 107, "answer"],
 		["-"],
 		["key %m.key pressed?",					"b", 107, "keyPressed:",		"space"],
@@ -317,6 +343,7 @@ public class Specs {
 
 		// operators
 		["%n + %n",								"r", 8, "+",					"", ""],
+		["%s + %n",								"r", 8, "jsop+",				"", ""],
 		["%n - %n",								"r", 8, "-",					"", ""],
 		["%n * %n",								"r", 8, "*",					"", ""],
 		["%n / %n",								"r", 8, "/",					"", ""],
@@ -324,8 +351,13 @@ public class Specs {
 		["pick random %n to %n",		"r", 8, "randomFrom:to:",		1, 10],
 		["-"],
 		["%s < %s",								"b", 8, "<",					"", ""],
+		["%s <= %s",							"b", 8, "<=",					"", ""],
 		["%s = %s",								"b", 8, "=",					"", ""],
+		["%s != %s",								"b", 8, "!=",					"", ""],
 		["%s > %s",								"b", 8, ">",					"", ""],
+		["%s >= %s",							"b", 8, ">=",					"", ""],
+		["true",								"b", 8, "true"],
+		["false",								"b", 8, "false"],
 		["-"],
 		["%b and %b",							"b", 8, "&"],
 		["%b or %b",							"b", 8, "|"],
@@ -341,7 +373,10 @@ public class Specs {
 		["%m.mathOp of %n",						"r", 8, "computeFunction:of:",	"sqrt", 9],
 
 		// variables
-		["set %m.var to %s",								" ", 9, SET_VAR],
+		["declare local %s to %s",							" ", 9, DECLARE_VAR],
+		["set %m.var to %s",								" ", 9, SET_VAR],		
+		["set local %s to %s",								" ", 9, WRITE_VAR],
+		["get local %s",								    "r", 9, READ_VAR],
 		["change %m.var by %n",								" ", 9, CHANGE_VAR],
 		["show variable %m.var",							" ", 9, "showVariable:"],
 		["hide variable %m.var",							" ", 9, "hideVariable:"],
@@ -379,8 +414,6 @@ public class Specs {
 		["counter",								"r", 99, "COUNT"],
 		["clear counter",						" ", 99, "CLR_COUNT"],
 		["incr counter",						" ", 99, "INCR_COUNT"],
-		["for each %m.varName in %s",			"c", 99, "doForLoop", "v", 10],
-		["while %b",							"c", 99, "doWhile"],
 		["all at once",							"c", 99, "warpSpeed"],
 
 		// stage motion (scrolling)

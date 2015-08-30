@@ -47,6 +47,7 @@ public class SensingPrims {
 		primTable['color:sees:']		= primColorSees;
 
 		primTable['doAsk']				= primAsk;
+		primTable['ask:']				= primAskAndReturn;
 		primTable['answer']				= function(b:*):* { return app.runtime.lastAnswer };
 
 		primTable['mousePressed']		= function(b:*):* { return app.gh.mouseIsDown };
@@ -220,6 +221,36 @@ public class SensingPrims {
 			interp.activeThread.firstTime = true;
 		}
 	}
+
+	private function primAskAndReturn(b:Block):String {
+		b.requestState = 0;
+		if (app.runtime.askPromptShowing()) {
+			// wait if (1) some other sprite is asking (2) this question is answered (when firstTime is false)
+			interp.doYield();
+			return "";
+		}
+		var obj:ScratchObj = interp.targetObj();
+		if (interp.activeThread.firstTime) {
+			var question:String = interp.arg(b, 0);
+			if ((obj is ScratchSprite) && (obj.visible)) {
+				ScratchSprite(obj).showBubble(question, 'talk', true);
+				app.runtime.showAskPrompt('');
+			} else {
+				app.runtime.showAskPrompt(question);
+			}
+			interp.activeThread.firstTime = false;
+
+			b.requestState = 1;
+			interp.doYield();
+		} else {
+			if ((obj is ScratchSprite) && (obj.visible)) ScratchSprite(obj).hideBubble();
+			interp.activeThread.firstTime = true;
+		}
+
+		b.requestState = 2;
+		return app.runtime.lastAnswer;
+	}
+
 
 	private function primKeyPressed(b:Block):Boolean {
 		var key:String = interp.arg(b, 0);

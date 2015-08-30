@@ -54,6 +54,7 @@ public class ScratchObj extends Sprite {
 	public var objName:String = 'no name';
 	public var isStage:Boolean = false;
 	public var variables:Array = [];
+	public var scopes:Array = [];
 	public var lists:Array = [];
 	public var scripts:Array = [];
 	public var scriptComments:Array = [];
@@ -446,9 +447,35 @@ public class ScratchObj extends Sprite {
 		return ownsVar(varName) || ownsList(varName) || p && (p.ownsVar(varName) || p.ownsList(varName));
 	}
 
-	public function lookupOrCreateVar(varName:String):Variable {
+	public function createVarScope(scope:Number):void {
+		scopes[scope] = [];
+	}
+
+	public function hasVarScope(b:Block, scope:Number):Boolean {
+		Scratch.app.log("hasVarScope " + scope);
+		return scopes[scope] && scopes[scope][0] && scopes[scope][0].block == b;
+	}
+
+	public function pushVarScope(b:Block, scope:Number):void {
+		scopes[scope].unshift(new ScopeLevel(b)); 
+	}
+
+	public function popVarScope(b:Block, scope:Number):void {
+		scopes[scope].shift(); 
+	}
+
+	public function declareVar(varName:String, scope:Number):Variable {
+		if(scope == -1 || !scopes[scope] || !scopes[scope][0]) return null;
+
+		var v:Variable = new Variable(varName, 0);
+		scopes[scope][0].push(v);
+
+		return v;
+	}
+
+	public function lookupOrCreateVar(varName:String, scope:Number = -1):Variable {
 		// Lookup and return a variable. If lookup fails, create the variable in this object.
-		var v:Variable = lookupVar(varName);
+		var v:Variable = lookupVar(varName, scope);
 		if (v == null) { // not found; create it
 			v = new Variable(varName, 0);
 			variables.push(v);
@@ -457,10 +484,19 @@ public class ScratchObj extends Sprite {
 		return v;
 	}
 
-	public function lookupVar(varName:String):Variable {
+	public function lookupVar(varName:String, scope:Number = -1):Variable {
 		// Look for variable first in sprite (local), then stage (global).
 		// Return null if not found.
 		var v:Variable;
+		var s:Array;
+
+		if(scope != -1 && scopes[scope]) {
+			for each (s in ScopeLevel(scopes[scope]).variables) {
+				for each (v in s) {
+					if (v.name == varName) return v;
+				}
+			}
+		}
 		for each (v in variables) {
 			if (v.name == varName) return v;
 		}
@@ -714,4 +750,14 @@ public class ScratchObj extends Sprite {
 		return h1(s, "-");
 	}
 
+
 }}
+	
+	class ScopeLevel {
+		public function ScopeLevel(b:*) {
+			this.block = b;
+		} 
+		
+		public var block:*;
+		public var variables:Array = [];
+	}

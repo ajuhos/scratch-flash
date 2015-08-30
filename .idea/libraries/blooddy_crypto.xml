@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="blooddy_crypto" type="flex">
+  <library name="blooddy_crypto">
     <CLASSES>
       <root url="jar://$PROJECT_DIR$/libs/blooddy_crypto.swc!/" />
     </CLASSES>

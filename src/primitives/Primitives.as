@@ -46,18 +46,26 @@ public class Primitives {
 	public function addPrimsTo(primTable:Dictionary):void {
 		// operators
 		primTable["+"]				= function(b:*):* { return interp.numarg(b, 0) + interp.numarg(b, 1) };
+		primTable["jsop+"]		    = function(b:*):* { return interp.arg(b, 0) + interp.arg(b, 1) };
 		primTable["-"]				= function(b:*):* { return interp.numarg(b, 0) - interp.numarg(b, 1) };
 		primTable["*"]				= function(b:*):* { return interp.numarg(b, 0) * interp.numarg(b, 1) };
 		primTable["/"]				= function(b:*):* { return interp.numarg(b, 0) / interp.numarg(b, 1) };
 		primTable["randomFrom:to:"]	= primRandom;
 		primTable["<"]				= function(b:*):* { return compare(interp.arg(b, 0), interp.arg(b, 1)) < 0 };
+		primTable["<="]				= function(b:*):* { return compare(interp.arg(b, 0), interp.arg(b, 1)) <= 0 };
 		primTable["="]				= function(b:*):* { return compare(interp.arg(b, 0), interp.arg(b, 1)) == 0 };
+		primTable["!="]				= function(b:*):* { return compare(interp.arg(b, 0), interp.arg(b, 1)) != 0 };
 		primTable[">"]				= function(b:*):* { return compare(interp.arg(b, 0), interp.arg(b, 1)) > 0 };
+		primTable[">="]				= function(b:*):* { return compare(interp.arg(b, 0), interp.arg(b, 1)) >= 0 };
 		primTable["&"]				= function(b:*):* { return interp.arg(b, 0) && interp.arg(b, 1) };
 		primTable["|"]				= function(b:*):* { return interp.arg(b, 0) || interp.arg(b, 1) };
 		primTable["not"]			= function(b:*):* { return !interp.arg(b, 0) };
 		primTable["abs"]			= function(b:*):* { return Math.abs(interp.numarg(b, 0)) };
 		primTable["sqrt"]			= function(b:*):* { return Math.sqrt(interp.numarg(b, 0)) };
+		
+		primTable["callJS:with:"]	= function(b:*):* { app.log("call: " + interp.arg(b,0)); app.externalCall("" + interp.arg(b,0), null, interp.arg(b,1)); return true; };
+		primTable["evalJS:"]		= function(b:*):* { app.externalCall("eval", null, "" + interp.arg(b,0)); return true; };
+		primTable["whenJS"]		= interp.primNoop;
 
 		primTable["concatenate:with:"]	= function(b:*):* { return ("" + interp.arg(b, 0) + interp.arg(b, 1)).substr(0, 10240); };
 		primTable["letter:of:"]			= primLetterOf;
@@ -67,10 +75,21 @@ public class Primitives {
 		primTable["rounded"]			= function(b:*):* { return Math.round(interp.numarg(b, 0)) };
 		primTable["computeFunction:of:"] = primMathFunction;
 
+		primTable["true"] = function(b:*):* { return true };
+		primTable["false"] = function(b:*):* { return false };
+
 		// clone
 		primTable["createCloneOf"]		= primCreateCloneOf;
 		primTable["deleteClone"]		= primDeleteClone;
 		primTable["whenCloned"]			= interp.primNoop;
+
+		//gamepad
+		primTable["whenGamepadButton"] 		= interp.primNoop;
+		primTable["whenGamepadAxe"]  		= interp.primNoop;
+		primTable["gamepadButton:"]			= function(b:*):* {	return app.lastGamepad && app.lastGamepad.buttons[interp.numarg(b, 0)] && app.lastGamepad.buttons[interp.numarg(b, 0)].pressed; };
+		primTable["gamepadAxe:"]			= function(b:*):* {	if(!app.lastGamepad) return 0; return app.lastGamepad.axes[interp.numarg(b, 0)] || 0; };
+		primTable["gamepadStickDirection:"]	= primGamepadStickDirection;
+		primTable["gamepadStickValue:"]		= primGamepadStickValue;
 
 		// testing (for development)
 		primTable["NOOP"]				= interp.primNoop;
@@ -88,6 +107,72 @@ public class Primitives {
 	protected function addOtherPrims(primTable:Dictionary):void {
 		new SensingPrims(app, interp).addPrimsTo(primTable);
 		new ListPrims(app, interp).addPrimsTo(primTable);
+	}
+
+	private function primGamepadStickDirection(b:Block):Number {
+		if(!app.lastGamepad) return 0;
+
+		var nr:Number = interp.numarg(b, 0);
+
+		var sideX:Number = 0,
+			sideY:Number = 0;
+
+		if(nr == 1) {
+			sideX = app.lastGamepad.axes[0];
+			sideY = app.lastGamepad.axes[1];			
+		}
+		else if(nr == 2) {
+			sideX = app.lastGamepad.axes[1];
+			sideY = app.lastGamepad.axes[2];			
+		}
+		else if(nr == 3) {
+			sideX = app.lastGamepad.axes[3];
+			sideY = app.lastGamepad.axes[4];			
+		}
+
+    	if (!sideX  && !sideY)
+       		return 90;
+
+        var angleX:Number = (Math.atan(Math.abs(sideY) / Math.abs(sideX)) * 180) / Math.PI;
+
+        if (sideY <= 0)
+            angleX = angleX * -1
+        
+        if ( sideX < 0 && sideY < 0 ) 
+            return 270 + Math.abs( angleX )
+        else if ( sideX < 0 && sideY > 0 ) 
+            return 270 - Math.abs( angleX )
+        else if ( sideX > 0 && sideY > 0 ) 
+            return 90 + Math.abs( angleX )
+        else
+            return 90 - Math.abs( angleX )
+	}
+
+	private function primGamepadStickValue(b:Block):Number {
+		if(!app.lastGamepad) return 0;
+
+		var nr:Number = interp.numarg(b, 0);
+
+		var sideX:Number = 0,
+			sideY:Number = 0;
+
+		if(nr == 1) {
+			sideX = app.lastGamepad.axes[0];
+			sideY = app.lastGamepad.axes[1];			
+		}
+		else if(nr == 2) {
+			sideX = app.lastGamepad.axes[1];
+			sideY = app.lastGamepad.axes[2];			
+		}
+		else if(nr == 3) {
+			sideX = app.lastGamepad.axes[3];
+			sideY = app.lastGamepad.axes[4];			
+		}
+
+    	if (!sideX  && !sideY)
+       		return 0;
+
+        return Math.sqrt(sideX*sideX + sideY*sideY)
 	}
 
 	private function primRandom(b:Block):Number {

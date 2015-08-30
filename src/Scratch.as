@@ -71,7 +71,7 @@ import watchers.ListWatcher;
 
 public class Scratch extends Sprite {
 	// Version
-	public static const versionString:String = 'v439.2';
+	public static const versionString:String = 'Logicode v439.2.3';
 	public static var app:Scratch; // static reference to the app, used for debugging
 
 	// Display modes
@@ -83,9 +83,9 @@ public class Scratch extends Sprite {
 	public var isIn3D:Boolean;
 	public var render3D:DisplayObjectContainerIn3D;
 	public var isArmCPU:Boolean;
-	public var jsEnabled:Boolean = false; // true when the SWF can talk to the webpage
+	public var jsEnabled:Boolean = true; // true when the SWF can talk to the webpage
 	public var ignoreResize:Boolean = false; // If true, temporarily ignore resize events.
-	public var isExtensionDevMode:Boolean = false; // If true, run in extension development mode (as on ScratchX)
+	public var isExtensionDevMode:Boolean = true; // If true, run in extension development mode (as on ScratchX)
 	public var isMicroworld:Boolean = false;
 
 	// Runtime
@@ -101,6 +101,7 @@ public class Scratch extends Sprite {
 	public var loadInProgress:Boolean;
 	public var debugOps:Boolean = false;
 	public var debugOpCmd:String = '';
+	public var nextScopeId:Number = 0;
 
 	protected var autostart:Boolean;
 	private var viewedObject:ScratchObj;
@@ -127,6 +128,8 @@ public class Scratch extends Sprite {
 	public var imagesPart:ImagesPart;
 	public var soundsPart:SoundsPart;
 	public const tipsBarClosedWidth:int = 17;
+
+	public var lastGamepad:* = null;
 
 	public function Scratch() {
 		SVGTool.setStage(stage);
@@ -229,6 +232,10 @@ public class Scratch extends Sprite {
 		addExternalCallback('ASextensionReporterDone', extensionManager.reporterCompleted);
 		addExternalCallback('AScreateNewProject', createNewProjectScratchX);
 
+		addExternalCallback('ASloadProject', loadSingleGithubURL);
+		addExternalCallback('ASreceiveMessage', receiveJSMessage);
+		addExternalCallback('ASgamepadChange', receiveGamepadStatus);
+
 		if (isExtensionDevMode) {
 			addExternalCallback('ASloadGithubURL', loadGithubURL);
 			addExternalCallback('ASloadBase64SBX', loadBase64SBX);
@@ -244,24 +251,42 @@ public class Scratch extends Sprite {
 		}
 	}
 
+	private function receiveGamepadStatus(status:*):void {
+		lastGamepad = status;
+		var buttons:Array = status.buttons;
+		var axes:Array = status.axes;
+
+		for(var i:Number = 0; i < buttons.length; i++)
+			if(buttons[i].pressed) runtime.startGamepadButtonHats(i);
+
+		axes.push(buttons[6].value); //left trigger
+		axes.push(buttons[7].value); //right trigger
+		for(i = 0; i < axes.length; i++)
+			if(axes[i]) runtime.startGamepadAxeHats(i);			
+	}
+
+	private function receiveJSMessage(msg:String):void {
+		if(!msg) return;
+		runtime.startReceivedJSs(msg);
+	}
+
 	private function loadSingleGithubURL(url:String):void {
+		loadInProgress = true;
 		url = StringUtil.trim(unescape(url));
+		externalCall("console.log", null, "loading: " + url);
 
 		function handleComplete(e:Event):void {
+			externalCall("console.log", null, "installing project...");
+
 			runtime.installProjectFromData(sbxLoader.data);
-			if (StringUtil.trim(projectName()).length == 0) {
-				var newProjectName:String = url;
-				var index:int = newProjectName.indexOf('?');
-				if (index > 0) newProjectName = newProjectName.slice(0, index);
-				index = newProjectName.lastIndexOf('/');
-				if (index > 0) newProjectName = newProjectName.substr(index + 1);
-				index = newProjectName.lastIndexOf('.sbx');
-				if (index > 0) newProjectName = newProjectName.slice(0, index);
-				setProjectName(newProjectName);
-			}
+			setProjectName('Local project');
+			topBarPart.refresh();
+			stagePart.refresh();
+			externalCall("console.log", null, "done.");
 		}
 
 		function handleError(e:ErrorEvent):void {
+						loadInProgress = false;
 			jsThrowError('Failed to load SBX: ' + e.toString());
 		}
 
@@ -380,7 +405,7 @@ public class Scratch extends Sprite {
 	}
 
 	protected function startInEditMode():Boolean {
-		return isOffline || isExtensionDevMode;
+		return true;//isOffline || isExtensionDevMode;
 	}
 
 	public function getMediaLibrary(type:String, whenDone:Function):MediaLibrary {
@@ -411,6 +436,7 @@ public class Scratch extends Sprite {
 	}
 
 	public function log(s:String):void {
+		externalCall("console.log", null, s);
 		trace(s);
 	}
 
@@ -675,7 +701,7 @@ public class Scratch extends Sprite {
 	public function projectLoaded():void {
 		removeLoadProgressBox();
 		System.gc();
-		if (autostart) runtime.startGreenFlags(true);
+		runtime.startGreenFlags(true);
 		loadInProgress = false;
 		saveNeeded = false;
 
@@ -683,6 +709,8 @@ public class Scratch extends Sprite {
 		for each (var o:ScratchObj in stagePane.allObjects()) {
 			o.updateScriptsAfterTranslation();
 		}
+
+		scriptsPane.cleanUp();
 
 		if (jsEnabled && isExtensionDevMode) {
 			if (pendingExtensionURLs) {

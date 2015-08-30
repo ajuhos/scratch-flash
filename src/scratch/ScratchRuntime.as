@@ -203,6 +203,45 @@ public class ScratchRuntime {
 		allStacksAndOwnersDo(startMatchingKeyHats);
 	}
 
+	public function startGamepadButtonHats(index:Number):void {
+		function startMatchingKeyHats(stack:Block, target:ScratchObj):void {
+			if (stack.op == 'whenGamepadButton') {
+				var k:Number = stack.args[0].argValue;
+				if (k == index) {
+					// only start the stack if it is not already running
+					if (!interp.isRunning(stack, target)) interp.toggleThread(stack, target);
+				}
+			}
+		}
+		allStacksAndOwnersDo(startMatchingKeyHats);
+	}
+
+	public function startGamepadAxeHats(index:Number):void {
+		function startMatchingKeyHats(stack:Block, target:ScratchObj):void {
+			if (stack.op == 'whenGamepadAxe') {
+				var k:Number = stack.args[0].argValue;
+				if (k == index) {
+					// only start the stack if it is not already running
+					if (!interp.isRunning(stack, target)) interp.toggleThread(stack, target);
+				}
+			}
+		}
+		allStacksAndOwnersDo(startMatchingKeyHats);
+	}
+
+	public function startReceivedJSs(message:String):void {
+		function startMatchingKeyHats(stack:Block, target:ScratchObj):void {
+			if (stack.op == 'whenJS') {
+				var k:String = stack.args[0].argValue;
+				if (k == message) {
+					// only start the stack if it is not already running
+					if (!interp.isRunning(stack, target)) interp.toggleThread(stack, target);
+				}
+			}
+		}
+		allStacksAndOwnersDo(startMatchingKeyHats);
+	}
+
 	public function collectBroadcasts():Array {
 		function addBlock(b:Block):void {
 			if ((b.op == 'broadcast:') ||
@@ -410,9 +449,11 @@ public class ScratchRuntime {
 			data.position = 0;
 			newProject = new ProjectIO(app).decodeProjectFromZipFile(data);
 			if (!newProject) {
+				app.log("falied to decode zip.");
 				projectLoadFailed();
 				return;
 			}
+			app.log("zip decoded.");
 		} else {
 			var info:Object;
 			var objTable:Array;
@@ -440,7 +481,8 @@ public class ScratchRuntime {
 	}
 
 	public function decodeImagesAndInstall(newProject:ScratchStage):void {
-		function imagesDecoded():void { projectToInstall = newProject } // stepRuntime() will finish installation
+		function imagesDecoded():void { installProject(newProject)  } // stepRuntime() will finish installation
+		app.log("decoding images...");
 		new ProjectIO(app).decodeAllImages(newProject.allObjects(), imagesDecoded);
 	}
 

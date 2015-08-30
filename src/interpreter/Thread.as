@@ -40,6 +40,7 @@ public class Thread {
 	public var firstTime:Boolean;	// used by certain control structures
 	public var tmp:int;				// used by repeat and wait
 	public var args:Array;			// arguments to a user-defined procedure
+	public var scopeId:int;
 
 	// the stack
 	private var stack:Vector.<StackFrame>;
@@ -55,6 +56,7 @@ public class Thread {
 		isLoop = false;
 		firstTime = true;
 		tmp = 0;
+		scopeId = -1;
 	}
 
 	public function pushStateForBlock(b:Block):void {

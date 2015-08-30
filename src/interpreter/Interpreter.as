@@ -355,6 +355,19 @@ public class Interpreter {
 		return n;
 	}
 
+	public function numargopt(b:Block, i:int):* {
+		var args:Array = b.args;
+		if (b.rightToLeft) { i = args.length - i - 1; }
+
+		var v:* = (b.args[i] is BlockArg) ?
+			BlockArg(args[i]).argValue : evalCmd(Block(args[i]));
+
+		var n:Number = Number(v);
+
+		if (n != n) return v; 
+		return n;
+	}
+
 	public function boolarg(b:Block, i:int):Boolean {
 		if (b.rightToLeft) { i = b.args.length - i - 1; }
 		var o:* = (b.args[i] is BlockArg) ? BlockArg(b.args[i]).argValue : evalCmd(Block(b.args[i]));
@@ -442,6 +455,7 @@ public class Interpreter {
 		primTable["whenIReceive"]		= primNoop;
 		primTable["doForeverIf"]		= function(b:*):* { if (arg(b, 0)) startCmdList(b.subStack1, true); else yield = true; };
 		primTable["doForLoop"]			= primForLoop;
+		primTable["doFor"]			    = primFor;
 		primTable["doIf"]				= function(b:*):* { if (arg(b, 0)) startCmdList(b.subStack1); };
 		primTable["doIfElse"]			= function(b:*):* { if (arg(b, 0)) startCmdList(b.subStack1); else startCmdList(b.subStack2); };
 		primTable["doWaitUntil"]		= function(b:*):* { if (!arg(b, 0)) yield = true; };
@@ -451,15 +465,19 @@ public class Interpreter {
 		primTable["stopAll"]			= function(b:*):* { app.runtime.stopAll(); yield = true; };
 		primTable["stopScripts"]		= primStop;
 		primTable["warpSpeed"]			= primOldWarpSpeed;
+		primTable["doScope"]			= primScope;
 
 		// procedures
 		primTable[Specs.CALL]			= primCall;
 
 		// variables
 		primTable[Specs.GET_VAR]		= primVarGet;
+		primTable[Specs.READ_VAR]		= primVarGetLocal;
 		primTable[Specs.SET_VAR]		= primVarSet;
+		primTable[Specs.WRITE_VAR]		= primVarSet;
 		primTable[Specs.CHANGE_VAR]		= primVarChange;
 		primTable[Specs.GET_PARAM]		= primGetParam;
+		primTable[Specs.DECLARE_VAR]	= primVarDeclare;
 
 		// edge-trigger hat blocks
 		primTable["whenDistanceLessThan"]	= primNoop;
@@ -491,6 +509,10 @@ public class Interpreter {
 	}
 
 	public function primNoop(b:Block):void { }
+
+	private function primFor(b:Block):void {
+
+	}
 
 	private function primForLoop(b:Block):void {
 		var list:Array = [];
@@ -676,37 +698,83 @@ public class Interpreter {
 	// Optimization: to avoid the cost of looking up the variable every time,
 	// a reference to the Variable object is cached in the target object.
 
+	public function primScope(b:Block):* {
+		if(activeThread.scopeId == -1) {
+			var scope:Number = app.nextScopeId++;
+			activeThread.scopeId = scope;
+		}
+
+		var target:ScratchObj = ScratchObj(activeThread.target);
+		if(!target) return false;
+
+		if(target.hasVarScope(b, scope)) {
+			app.log('<---');
+			target.popVarScope(b, scope);
+		}
+		else {
+			target.createVarScope(scope);
+			target.pushVarScope(b, scope);
+			app.log('--->');
+			startCmdList(b.subStack1, true);
+		}
+
+		return true;
+	}
+
 	private function primVarGet(b:Block):* {
-		var v:Variable = activeThread.target.varCache[b.spec];
+		var v:Variable = null;//activeThread.target.varCache[b.spec];
 		if (v == null) {
-			v = activeThread.target.varCache[b.spec] = activeThread.target.lookupOrCreateVar(b.spec);
+			v = activeThread.target.varCache[b.spec] = activeThread.target.lookupOrCreateVar(b.spec, activeThread.scopeId);
 			if (v == null) return 0;
 		}
 		// XXX: Do we need a get() for persistent variables here ?
 		return v.value;
 	}
 
-	protected function primVarSet(b:Block):Variable {
+	private function primVarGetLocal(b:Block):* {
+		app.log('primVarGetLocal');
+		var v:Variable = null;//activeThread.target.varCache[b.spec];
+		if (v == null) {
+			v = activeThread.target.lookupOrCreateVar(arg(b, 0), activeThread.scopeId);
+			if (v == null) return 0;
+		}
+		// XXX: Do we need a get() for persistent variables here ?
+		return v.value;
+	}
+
+	protected function primVarDeclare(b:Block):* {
+		if(activeThread.scopeId == -1) return null;
+
 		var name:String = arg(b, 0);
-		var v:Variable = activeThread.target.varCache[name];
+
+		var v:Variable = activeThread.target.declareVar(name, activeThread.scopeId);
+		if (!v) return null;
+
+		v.value = arg(b, 1);
+		return v.value;
+	}
+
+	protected function primVarSet(b:Block):* {
+		var name:String = arg(b, 0);
+		var v:Variable = null;//activeThread.target.varCache[name];
 		if (!v) {
-			v = activeThread.target.varCache[name] = activeThread.target.lookupOrCreateVar(name);
+			v = activeThread.target.varCache[name] = activeThread.target.lookupOrCreateVar(name, activeThread.scopeId);
 			if (!v) return null;
 		}
 		var oldvalue:* = v.value;
 		v.value = arg(b, 1);
-		return v;
+		return v.value;
 	}
 
-	protected function primVarChange(b:Block):Variable {
+	protected function primVarChange(b:Block):* {
 		var name:String = arg(b, 0);
-		var v:Variable = activeThread.target.varCache[name];
+		var v:Variable = null;activeThread.target.varCache[name];
 		if (!v) {
-			v = activeThread.target.varCache[name] = activeThread.target.lookupOrCreateVar(name);
+			v = activeThread.target.varCache[name] = activeThread.target.lookupOrCreateVar(name, activeThread.scopeId);
 			if (!v) return null;
 		}
 		v.value = Number(v.value) + numarg(b, 1);
-		return v;
+		return v.value;
 	}
 
 	private function primGetParam(b:Block):* {
