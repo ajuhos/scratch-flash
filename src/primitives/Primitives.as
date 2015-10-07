@@ -62,10 +62,15 @@ public class Primitives {
 		primTable["not"]			= function(b:*):* { return !interp.arg(b, 0) };
 		primTable["abs"]			= function(b:*):* { return Math.abs(interp.numarg(b, 0)) };
 		primTable["sqrt"]			= function(b:*):* { return Math.sqrt(interp.numarg(b, 0)) };
+		primTable["dot"]			= function(b:*):* { var obj = interp.arg(b, 0); if(!obj) return null; return obj[interp.arg(b, 1)] };
 		
 		primTable["callJS:with:"]	= function(b:*):* { app.log("call: " + interp.arg(b,0)); app.externalCall("" + interp.arg(b,0), null, interp.arg(b,1)); return true; };
 		primTable["evalJS:"]		= function(b:*):* { app.externalCall("eval", null, "" + interp.arg(b,0)); return true; };
-		primTable["whenJS"]		= interp.primNoop;
+		primTable["whenJS"]		    = interp.primNoop;
+
+		primTable["broadcastSocket:with:"] = function(b:*):* { app.externalCall("receiveSocketMsg", null, { type: "" + interp.arg(b,0), data: interp.arg(b,1) }); return true; };
+		primTable["whenSocket"]		= interp.primNoop;
+		primTable["socketData"]		= function(b:*):* { return app.lastSocketData; };
 
 		primTable["concatenate:with:"]	= function(b:*):* { return ("" + interp.arg(b, 0) + interp.arg(b, 1)).substr(0, 10240); };
 		primTable["letter:of:"]			= primLetterOf;

@@ -242,6 +242,21 @@ public class ScratchRuntime {
 		allStacksAndOwnersDo(startMatchingKeyHats);
 	}
 
+	public function startReceivedSockets(message:*):void {
+		if(!message || !message.type) return;
+
+		function startMatchingKeyHats(stack:Block, target:ScratchObj):void {
+			if (stack.op == 'whenSocket') {
+				var k:String = stack.args[0].argValue;
+				if (k == message.type) {
+					// only start the stack if it is not already running
+					if (!interp.isRunning(stack, target)) interp.toggleThread(stack, target);
+				}
+			}
+		}
+		allStacksAndOwnersDo(startMatchingKeyHats);
+	}
+
 	public function collectBroadcasts():Array {
 		function addBlock(b:Block):void {
 			if ((b.op == 'broadcast:') ||

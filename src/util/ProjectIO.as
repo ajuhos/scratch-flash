@@ -76,6 +76,16 @@ public class ProjectIO {
 		return zip.endWrite();
 	}
 
+	public function encodeProjectAsString(proj:ScratchStage):String {
+		// Encode a project into a ByteArray. The format is a ZIP file containing
+		// the JSON project data and all images and sounds as files.
+		delete proj.info.penTrails; // remove the penTrails bitmap saved in some old projects' info
+		proj.savePenLayer();
+		proj.updateInfo();
+		recordImagesAndSounds(proj.allObjects(), false, proj);
+		return util.JSON.stringify(proj);
+	}
+
 	public function encodeSpriteAsZipFile(spr:ScratchSprite):ByteArray {
 		// Encode a sprite into a ByteArray. The format is a ZIP file containing
 		// the JSON sprite data and all images and sounds as files.

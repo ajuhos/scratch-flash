@@ -460,6 +460,7 @@ public class Interpreter {
 		primTable["doIfElse"]			= function(b:*):* { if (arg(b, 0)) startCmdList(b.subStack1); else startCmdList(b.subStack2); };
 		primTable["doWaitUntil"]		= function(b:*):* { if (!arg(b, 0)) yield = true; };
 		primTable["doWhile"]			= function(b:*):* { if (arg(b, 0)) startCmdList(b.subStack1, true); };
+		primTable["doDoWhile"]			= function(b:*):* { startCmdList(b.subStack1, !!arg(b, 0)); };
 		primTable["doUntil"]			= function(b:*):* { if (!arg(b, 0)) startCmdList(b.subStack1, true); };
 		primTable["doReturn"]			= primReturn;
 		primTable["stopAll"]			= function(b:*):* { app.runtime.stopAll(); yield = true; };
@@ -722,9 +723,9 @@ public class Interpreter {
 	}
 
 	private function primVarGet(b:Block):* {
-		var v:Variable = null;//activeThread.target.varCache[b.spec];
+		var v:Variable = activeThread.target.varCache[b.spec];
 		if (v == null) {
-			v = activeThread.target.varCache[b.spec] = activeThread.target.lookupOrCreateVar(b.spec, activeThread.scopeId);
+			v = activeThread.target.varCache[b.spec] = activeThread.target.lookupOrCreateVar(b.spec);
 			if (v == null) return 0;
 		}
 		// XXX: Do we need a get() for persistent variables here ?
@@ -733,9 +734,9 @@ public class Interpreter {
 
 	private function primVarGetLocal(b:Block):* {
 		app.log('primVarGetLocal');
-		var v:Variable = null;//activeThread.target.varCache[b.spec];
+		var v:Variable = activeThread.target.varCache[arg(b, 0)];
 		if (v == null) {
-			v = activeThread.target.lookupOrCreateVar(arg(b, 0), activeThread.scopeId);
+			v = activeThread.target.lookupOrCreateVar(arg(b, 0));
 			if (v == null) return 0;
 		}
 		// XXX: Do we need a get() for persistent variables here ?
@@ -756,9 +757,9 @@ public class Interpreter {
 
 	protected function primVarSet(b:Block):* {
 		var name:String = arg(b, 0);
-		var v:Variable = null;//activeThread.target.varCache[name];
+		var v:Variable = activeThread.target.varCache[name];
 		if (!v) {
-			v = activeThread.target.varCache[name] = activeThread.target.lookupOrCreateVar(name, activeThread.scopeId);
+			v = activeThread.target.varCache[name] = activeThread.target.lookupOrCreateVar(name);
 			if (!v) return null;
 		}
 		var oldvalue:* = v.value;
@@ -768,7 +769,7 @@ public class Interpreter {
 
 	protected function primVarChange(b:Block):* {
 		var name:String = arg(b, 0);
-		var v:Variable = null;activeThread.target.varCache[name];
+		var v:Variable = activeThread.target.varCache[name];
 		if (!v) {
 			v = activeThread.target.varCache[name] = activeThread.target.lookupOrCreateVar(name, activeThread.scopeId);
 			if (!v) return null;

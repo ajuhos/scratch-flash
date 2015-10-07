@@ -102,6 +102,7 @@ public class Scratch extends Sprite {
 	public var debugOps:Boolean = false;
 	public var debugOpCmd:String = '';
 	public var nextScopeId:Number = 0;
+	public var lastSocketData:* = null;
 
 	protected var autostart:Boolean;
 	private var viewedObject:ScratchObj;
@@ -233,8 +234,12 @@ public class Scratch extends Sprite {
 		addExternalCallback('AScreateNewProject', createNewProjectScratchX);
 
 		addExternalCallback('ASloadProject', loadSingleGithubURL);
+		addExternalCallback('ASloadProjectB64', loadBase64SBX);
+		addExternalCallback('ASsaveProjectB64', exportProjectToB64);
 		addExternalCallback('ASreceiveMessage', receiveJSMessage);
+		addExternalCallback('ASreceiveSocketMessage', receiveSocketMessage);
 		addExternalCallback('ASgamepadChange', receiveGamepadStatus);
+		addExternalCallback('ASextractProject', exportProjectAsString);
 
 		if (isExtensionDevMode) {
 			addExternalCallback('ASloadGithubURL', loadGithubURL);
@@ -249,6 +254,11 @@ public class Scratch extends Sprite {
 				if (!success) jsThrowError('Calling JSeditorReady() failed.');
 			});
 		}
+	}
+
+	private function exportProjectAsString():String {
+		var projIO:ProjectIO = new ProjectIO(this);
+		return projIO.encodeProjectAsString(stagePane);
 	}
 
 	private function receiveGamepadStatus(status:*):void {
@@ -270,6 +280,12 @@ public class Scratch extends Sprite {
 		runtime.startReceivedJSs(msg);
 	}
 
+	private function receiveSocketMessage(msg:*):void {
+		if(!msg || !msg.type) return;
+		this.lastSocketData = msg.data || null;
+		runtime.startReceivedSockets(msg);
+	}
+
 	private function loadSingleGithubURL(url:String):void {
 		loadInProgress = true;
 		url = StringUtil.trim(unescape(url));
@@ -283,6 +299,7 @@ public class Scratch extends Sprite {
 			topBarPart.refresh();
 			stagePart.refresh();
 			externalCall("console.log", null, "done.");
+			externalCall("scratchProjectLoaded", null, "");
 		}
 
 		function handleError(e:ErrorEvent):void {
@@ -353,9 +370,13 @@ public class Scratch extends Sprite {
 	}
 
 	private function loadBase64SBX(base64:String):void {
+		loadInProgress = true;
 		var sbxData:ByteArray = Base64Encoder.decode(base64);
 		app.setProjectName('');
 		runtime.installProjectFromData(sbxData);
+		topBarPart.refresh();
+		stagePart.refresh();
+		externalCall("console.log", null, "done.");
 	}
 
 	protected function initTopBarPart():void {
@@ -1163,6 +1184,32 @@ public class Scratch extends Sprite {
 		d.addButton('Don\'t save', proceedWithoutSaving);
 		d.addButton('Cancel', cancel);
 		d.showOnStage(stage);
+	}
+
+		public function exportProjectToB64(fromJS:Boolean = false, saveCallback:Function = null):void {
+		function squeakSoundsConverted():void {
+			scriptsPane.saveScripts(false);
+			var projectType:String = extensionManager.hasExperimentalExtensions() ? '.sbx' : '.sb2';
+			var defaultName:String = StringUtil.trim(projectName());
+			defaultName = ((defaultName.length > 0) ? defaultName : 'project') + projectType;
+			var zipData:ByteArray = projIO.encodeProjectAsZipFile(stagePane);
+			var sbxData:String = Base64Encoder.encode(zipData);
+
+			externalCall("scratchProjectSaved", null, sbxData);
+		}
+
+		function fileSaved(e:Event):void {
+			if (!fromJS) setProjectName(e.target.name);
+			if (isExtensionDevMode) {
+				// Some versions of the editor think of this as an "export" and some think of it as a "save"
+				saveNeeded = false;
+			}
+			if (saveCallback != null) saveCallback();
+		}
+
+		if (loadInProgress) return;
+		var projIO:ProjectIO = new ProjectIO(this);
+		projIO.convertSqueakSounds(stagePane, squeakSoundsConverted);
 	}
 
 	public function exportProjectToFile(fromJS:Boolean = false, saveCallback:Function = null):void {

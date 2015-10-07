@@ -86,7 +86,7 @@ public class Server implements IServer {
 	}
 
 	protected function getCdnStaticSiteURL():String {
-		return URLs.siteCdnPrefix + URLs.staticFiles;
+		return "cdn/"; //URLs.siteCdnPrefix + URLs.staticFiles;
 	}
 
 	// -----------------------------
@@ -243,7 +243,7 @@ public class Server implements IServer {
 //			whenDone(BackpackPart.localAssets[md5]);
 //			return null;
 //		}
-		var url:String = URLs.assetCdnPrefix + URLs.internalAPI + 'asset/' + md5 + '/get/';
+		var url:String = '/cdn/asset/' + md5 + '/get/';
 		return serverGet(url, whenDone);
 	}
 

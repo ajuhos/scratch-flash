@@ -73,6 +73,7 @@ public class MotionAndPenPrims {
 		primTable["setPenShadeTo:"]		= primSetPenShade;
 		primTable["changePenShadeBy:"]	= primChangePenShade;
 		primTable["penSize:"]			= primSetPenSize;
+		primTable["setPenSizeTo:"]		= primSetPenSize;
 		primTable["changePenSizeBy:"]	= primChangePenSize;
 		primTable["stampCostume"]		= primStamp;
 	}

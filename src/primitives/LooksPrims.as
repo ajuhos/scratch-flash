@@ -40,6 +40,7 @@ public class LooksPrims {
 
 	public function addPrimsTo(primTable:Dictionary):void {
 		primTable['lookLike:']				= primShowCostume;
+		primTable['setCostumeTo:']			= primShowCostume;
 		primTable['nextCostume']			= primNextCostume;
 		primTable['costumeIndex']			= primCostumeIndex;
 		primTable['costumeName']			= primCostumeName;
